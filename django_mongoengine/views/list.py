@@ -6,15 +6,9 @@ from django_mongoengine.paginator import Paginator
 from django_mongoengine.utils.wrappers import WrapDocument, copy_class
 from django_mongoengine.utils.monkey import get_patched_django_module
 
-__all__ = [
-    "MultipleObjectMixin",
-    "ListView",
-]
+__all__ = ["MultipleObjectMixin", "ListView"]
 
-djmod = get_patched_django_module(
-    "django.views.generic.list",
-    QuerySet=QuerySet,
-)
+djmod = get_patched_django_module("django.views.generic.list", QuerySet=QuerySet)
 
 
 @six.add_metaclass(WrapDocument)

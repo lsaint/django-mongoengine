@@ -4,8 +4,7 @@ from tumblelog import models
 
 
 class CommentForm(forms.EmbeddedDocumentForm):
-
     class Meta:
         document = models.Comment
-        embedded_field = 'comments'
-        exclude = ('created_at',)
+        embedded_field = "comments"
+        exclude = ("created_at",)

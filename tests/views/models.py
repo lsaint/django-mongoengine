@@ -14,15 +14,15 @@ class Artist(Document):
     name = fields.StringField(max_length=100)
 
     class Meta:
-        ordering = ['name'],
-        verbose_name = 'professional artist',
-        verbose_name_plural = 'professional artists'
+        ordering = (["name"],)
+        verbose_name = ("professional artist",)
+        verbose_name_plural = "professional artists"
 
     def __unicode__(self):
-        return self.name or ''
+        return self.name or ""
 
     def get_absolute_url(self):
-        return reverse('artist_detail', args=(self.id, ))
+        return reverse("artist_detail", args=(self.id,))
 
 
 class Author(Document):
@@ -30,10 +30,10 @@ class Author(Document):
     name = fields.StringField(max_length=100)
     slug = fields.StringField()
 
-    _meta = {"ordering": ['name'], "exclude": 'id'}
+    _meta = {"ordering": ["name"], "exclude": "id"}
 
     def __unicode__(self):
-        return self.name or ''
+        return self.name or ""
 
 
 class Book(Document):
@@ -44,10 +44,10 @@ class Book(Document):
     authors = fields.ListField(fields.ReferenceField(Author))
     pubdate = fields.DateTimeField()
 
-    _meta = {"ordering": ['-pubdate']}
+    _meta = {"ordering": ["-pubdate"]}
 
     def __unicode__(self):
-        return self.name or ''
+        return self.name or ""
 
 
 class Page(Document):

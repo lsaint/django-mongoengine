@@ -9,5 +9,7 @@ __all__ = [
     "ListView",
     "DetailView",
     "EmbeddedDetailView",
-    "CreateView", "UpdateView", "DeleteView",
+    "CreateView",
+    "UpdateView",
+    "DeleteView",
 ]

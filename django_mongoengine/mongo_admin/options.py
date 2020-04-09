@@ -10,20 +10,23 @@ from django.forms.formsets import all_valid
 from django.urls import reverse
 from django.contrib.admin.exceptions import DisallowedModelAdminToField
 from django.contrib.admin import widgets, helpers
-from django.contrib.admin.utils import (
-    unquote, flatten_fieldsets, get_deleted_objects,
-)
+from django.contrib.admin.utils import unquote, flatten_fieldsets, get_deleted_objects
 from django.contrib.admin.options import (
-    TO_FIELD_VAR, IS_POPUP_VAR,
-    get_ul_class, csrf_protect_m,
+    TO_FIELD_VAR,
+    IS_POPUP_VAR,
+    get_ul_class,
+    csrf_protect_m,
 )
 import six
 from django.utils.html import escape
 from django.core.exceptions import PermissionDenied
+
 try:
     from django.db.models.related import RelatedObject
 except ImportError:
-    from django.db.models.fields.related import ForeignObjectRel as RelatedObject # noqa
+    from django.db.models.fields.related import (
+        ForeignObjectRel as RelatedObject,
+    )  # noqa
 from django.http import Http404
 from django.template.response import TemplateResponse
 from django.utils.text import capfirst
@@ -34,16 +37,24 @@ from django.conf import settings
 from django.apps import apps
 
 from django_mongoengine.utils import force_text
-from django_mongoengine.fields import (ListField, EmbeddedDocumentField,
-                                       ReferenceField, StringField)
+from django_mongoengine.fields import (
+    ListField,
+    EmbeddedDocumentField,
+    ReferenceField,
+    StringField,
+)
 
 from django_mongoengine.mongo_admin.util import RelationWrapper
 from django_mongoengine.paginator import Paginator
 from django_mongoengine.utils.wrappers import copy_class
 from django_mongoengine.utils.monkey import get_patched_django_module
 from django_mongoengine.forms.documents import (
-    DocumentForm, documentform_factory, documentformset_factory,
-    inlineformset_factory, BaseInlineDocumentFormSet)
+    DocumentForm,
+    documentform_factory,
+    documentformset_factory,
+    inlineformset_factory,
+    BaseInlineDocumentFormSet,
+)
 
 
 def get_content_type_for_model(obj):
@@ -58,6 +69,7 @@ djmod = get_patched_django_module(
 
 class BaseDocumentAdmin(djmod.ModelAdmin):
     """Functionality common to both ModelAdmin and InlineAdmin."""
+
     form = DocumentForm
     paginator = Paginator
 
@@ -74,7 +86,9 @@ class BaseDocumentAdmin(djmod.ModelAdmin):
         if db_field.choices is not None:
             return self.formfield_for_choice_field(db_field, request, **kwargs)
 
-        if isinstance(db_field, ListField) and isinstance(db_field.field, ReferenceField):
+        if isinstance(db_field, ListField) and isinstance(
+            db_field.field, ReferenceField
+        ):
             return self.formfield_for_manytomany(db_field, request, **kwargs)
 
         # handle RelatedFields
@@ -85,20 +99,26 @@ class BaseDocumentAdmin(djmod.ModelAdmin):
             # OneToOneField with parent_link=True or a M2M intermediary.
             form_field = db_field.formfield(**kwargs)
             if db_field.name not in self.raw_id_fields:
-                related_modeladmin = self.admin_site._registry.get(db_field.document_type)
+                related_modeladmin = self.admin_site._registry.get(
+                    db_field.document_type
+                )
                 can_add_related = bool(
-                    related_modeladmin and related_modeladmin.has_add_permission(request)
+                    related_modeladmin
+                    and related_modeladmin.has_add_permission(request)
                 )
                 form_field.widget = widgets.RelatedFieldWidgetWrapper(
-                    form_field.widget, RelationWrapper(db_field.document_type), self.admin_site,
-                    can_add_related=can_add_related)
+                    form_field.widget,
+                    RelationWrapper(db_field.document_type),
+                    self.admin_site,
+                    can_add_related=can_add_related,
+                )
                 return form_field
 
         if isinstance(db_field, StringField):
             if db_field.max_length is None:
-                kwargs = dict({'widget': widgets.AdminTextareaWidget}, **kwargs)
+                kwargs = dict({"widget": widgets.AdminTextareaWidget}, **kwargs)
             else:
-                kwargs = dict({'widget': widgets.AdminTextInputWidget}, **kwargs)
+                kwargs = dict({"widget": widgets.AdminTextInputWidget}, **kwargs)
             return db_field.formfield(**kwargs)
 
         # If we've got overrides for the formfield defined, use 'em. **kwargs
@@ -118,14 +138,13 @@ class BaseDocumentAdmin(djmod.ModelAdmin):
         # If the field is named as a radio_field, use a RadioSelect
         if db_field.name in self.radio_fields:
             # Avoid stomping on custom widget/choices arguments.
-            if 'widget' not in kwargs:
-                kwargs['widget'] = widgets.AdminRadioSelect(attrs={
-                    'class': get_ul_class(self.radio_fields[db_field.name]),
-                })
-            if 'choices' not in kwargs:
-                kwargs['choices'] = db_field.get_choices(
-                    include_blank=db_field.blank,
-                    blank_choice=[('', _('None'))]
+            if "widget" not in kwargs:
+                kwargs["widget"] = widgets.AdminRadioSelect(
+                    attrs={"class": get_ul_class(self.radio_fields[db_field.name])}
+                )
+            if "choices" not in kwargs:
+                kwargs["choices"] = db_field.get_choices(
+                    include_blank=db_field.blank, blank_choice=[("", _("None"))]
                 )
         return db_field.formfield(**kwargs)
 
@@ -133,13 +152,17 @@ class BaseDocumentAdmin(djmod.ModelAdmin):
         """
         Get a form Field for a ManyToManyField.
         """
-        db = kwargs.get('using')
+        db = kwargs.get("using")
 
         if db_field.name in self.raw_id_fields:
-            kwargs['widget'] = widgets.ManyToManyRawIdWidget(db_field.rel, using=db)
-            kwargs['help_text'] = ''
-        elif db_field.name in (list(self.filter_vertical) + list(self.filter_horizontal)):
-            kwargs['widget'] = widgets.FilteredSelectMultiple(pretty_name(db_field.name), (db_field.name in self.filter_vertical))
+            kwargs["widget"] = widgets.ManyToManyRawIdWidget(db_field.rel, using=db)
+            kwargs["help_text"] = ""
+        elif db_field.name in (
+            list(self.filter_vertical) + list(self.filter_horizontal)
+        ):
+            kwargs["widget"] = widgets.FilteredSelectMultiple(
+                pretty_name(db_field.name), (db_field.name in self.filter_vertical)
+            )
 
         return db_field.formfield(**kwargs)
 
@@ -149,12 +172,11 @@ class BaseDocumentAdmin(djmod.ModelAdmin):
 
         if callable(self.view_on_site):
             return self.view_on_site(obj)
-        elif self.view_on_site and hasattr(obj, 'get_absolute_url'):
+        elif self.view_on_site and hasattr(obj, "get_absolute_url"):
             # use the ContentType lookup if view_on_site is True
-            return reverse('admin:view_on_site', kwargs={
-                'content_type_id': 0,
-                'object_id': obj.pk
-            })
+            return reverse(
+                "admin:view_on_site", kwargs={"content_type_id": 0, "object_id": obj.pk}
+            )
 
 
 @copy_class(djmod.ModelAdmin)
@@ -167,23 +189,28 @@ class DocumentAdmin(BaseDocumentAdmin):
         self.opts = model._meta
         self.admin_site = admin_site
         super(DocumentAdmin, self).__init__(model, admin_site)
-        self.log = not settings.DATABASES.get('default', {}).get(
-            'ENGINE', 'django.db.backends.dummy'
-        ).endswith('dummy')
-        self.change_list_template = 'admin/change_document_list.html'
+        self.log = (
+            not settings.DATABASES.get("default", {})
+            .get("ENGINE", "django.db.backends.dummy")
+            .endswith("dummy")
+        )
+        self.change_list_template = "admin/change_document_list.html"
 
-# XXX: add inline init somewhere
+    # XXX: add inline init somewhere
     def _get_inline_instances(self):
         for f in six.itervalues(self.model._fields):
-            if not (isinstance(f, ListField) and isinstance(getattr(f, 'field', None), EmbeddedDocumentField)) and not isinstance(f, EmbeddedDocumentField):
+            if not (
+                isinstance(f, ListField)
+                and isinstance(getattr(f, "field", None), EmbeddedDocumentField)
+            ) and not isinstance(f, EmbeddedDocumentField):
                 continue
             # Should only reach here if there is an embedded document...
             if f.name in self.exclude:
                 continue
             document = self.model()
-            if hasattr(f, 'field') and f.field is not None:
+            if hasattr(f, "field") and f.field is not None:
                 embedded_document = f.field.document_type
-            elif hasattr(f, 'document_type'):
+            elif hasattr(f, "document_type"):
                 embedded_document = f.document_type
             else:
                 # For some reason we found an embedded field were either
@@ -205,7 +232,7 @@ class DocumentAdmin(BaseDocumentAdmin):
                 # exclude field from normal form
                 if f.name not in self.exclude:
                     self.exclude.append(f.name)
-            if f.name == 'created_at' and f.name not in self.exclude:
+            if f.name == "created_at" and f.name not in self.exclude:
                 self.exclude.append(f.name)
             self.inline_instances.append(inline_instance)
 
@@ -214,11 +241,13 @@ class DocumentAdmin(BaseDocumentAdmin):
         Returns a Form class for use in the Formset on the changelist page.
         """
         defaults = {
-            "formfield_callback": partial(self.formfield_for_dbfield, request=request),
+            "formfield_callback": partial(self.formfield_for_dbfield, request=request)
         }
         defaults.update(kwargs)
-        if defaults.get('fields') is None and not modelform_defines_fields(defaults.get('form')):
-            defaults['fields'] = forms.ALL_FIELDS
+        if defaults.get("fields") is None and not modelform_defines_fields(
+            defaults.get("form")
+        ):
+            defaults["fields"] = forms.ALL_FIELDS
 
         return documentform_factory(self.model, **defaults)
 
@@ -228,12 +257,15 @@ class DocumentAdmin(BaseDocumentAdmin):
         is used.
         """
         defaults = {
-            "formfield_callback": partial(self.formfield_for_dbfield, request=request),
+            "formfield_callback": partial(self.formfield_for_dbfield, request=request)
         }
         defaults.update(kwargs)
         return documentformset_factory(
-            self.model, self.get_changelist_form(request), extra=0,
-            fields=self.list_editable, **defaults
+            self.model,
+            self.get_changelist_form(request),
+            extra=0,
+            fields=self.list_editable,
+            **defaults
         )
 
     def get_changelist(self, request, **kwargs):
@@ -241,6 +273,7 @@ class DocumentAdmin(BaseDocumentAdmin):
         Returns the ChangeList class for use on the changelist page.
         """
         from django_mongoengine.mongo_admin.views import DocumentChangeList
+
         return DocumentChangeList
 
     def log_addition(self, request, object, message):
@@ -276,16 +309,18 @@ class DocumentAdmin(BaseDocumentAdmin):
         return djmod.ModelAdmin.media.fget(self)
 
     @csrf_protect_m
-    def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
+    def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
 
         to_field = request.POST.get(TO_FIELD_VAR, request.GET.get(TO_FIELD_VAR))
         if to_field and not self.to_field_allowed(request, to_field):
-            raise DisallowedModelAdminToField("The field %s cannot be referenced." % to_field)
+            raise DisallowedModelAdminToField(
+                "The field %s cannot be referenced." % to_field
+            )
 
         model = self.model
         opts = model._meta
 
-        if request.method == 'POST' and '_saveasnew' in request.POST:
+        if request.method == "POST" and "_saveasnew" in request.POST:
             object_id = None
 
         add = object_id is None
@@ -302,11 +337,13 @@ class DocumentAdmin(BaseDocumentAdmin):
                 raise PermissionDenied
 
             if obj is None:
-                raise Http404(_('%(name)s object with primary key %(key)r does not exist.') % {
-                    'name': force_text(opts.verbose_name), 'key': escape(object_id)})
+                raise Http404(
+                    _("%(name)s object with primary key %(key)r does not exist.")
+                    % {"name": force_text(opts.verbose_name), "key": escape(object_id)}
+                )
 
         ModelForm = self.get_form(request, obj)
-        if request.method == 'POST':
+        if request.method == "POST":
             form = ModelForm(request.POST, request.FILES, instance=obj)
             if form.is_valid():
                 form_validated = True
@@ -314,11 +351,15 @@ class DocumentAdmin(BaseDocumentAdmin):
             else:
                 form_validated = False
                 new_object = form.instance
-            formsets, inline_instances = self._create_formsets(request, new_object, change=not add)
+            formsets, inline_instances = self._create_formsets(
+                request, new_object, change=not add
+            )
             if all_valid(formsets) and form_validated:
                 self.save_model(request, new_object, form, not add)
                 self.save_related(request, form, formsets, not add)
-                change_message = self.construct_change_message(request, form, formsets, add)
+                change_message = self.construct_change_message(
+                    request, form, formsets, add
+                )
                 if add:
                     self.log_addition(request, new_object, change_message)
                     return self.response_add(request, new_object)
@@ -331,31 +372,38 @@ class DocumentAdmin(BaseDocumentAdmin):
             if add:
                 initial = self.get_changeform_initial_data(request)
                 form = ModelForm(initial=initial)
-                formsets, inline_instances = self._create_formsets(request, form.instance, change=False)
+                formsets, inline_instances = self._create_formsets(
+                    request, form.instance, change=False
+                )
             else:
                 form = ModelForm(instance=obj)
-                formsets, inline_instances = self._create_formsets(request, obj, change=True)
+                formsets, inline_instances = self._create_formsets(
+                    request, obj, change=True
+                )
 
         adminForm = helpers.AdminForm(
             form,
             list(self.get_fieldsets(request, obj)),
             self.get_prepopulated_fields(request, obj),
             self.get_readonly_fields(request, obj),
-            model_admin=self)
+            model_admin=self,
+        )
         media = self.media + adminForm.media
 
-        inline_formsets = self.get_inline_formsets(request, formsets, inline_instances, obj)
+        inline_formsets = self.get_inline_formsets(
+            request, formsets, inline_instances, obj
+        )
         for inline_formset in inline_formsets:
             media = media + inline_formset.media
 
         context = dict(
             self.admin_site.each_context(request),
-            title=(_('Add %s') if add else _('Change %s')) % force_text(opts.verbose_name),
+            title=(_("Add %s") if add else _("Change %s"))
+            % force_text(opts.verbose_name),
             adminform=adminForm,
             object_id=object_id,
             original=obj,
-            is_popup=(IS_POPUP_VAR in request.POST or
-                      IS_POPUP_VAR in request.GET),
+            is_popup=(IS_POPUP_VAR in request.POST or IS_POPUP_VAR in request.GET),
             to_field=to_field,
             media=media,
             inline_admin_formsets=inline_formsets,
@@ -365,15 +413,21 @@ class DocumentAdmin(BaseDocumentAdmin):
 
         # Hide the "Save" and "Save and continue" buttons if "Save as New" was
         # previously chosen to prevent the interface from getting confusing.
-        if request.method == 'POST' and not form_validated and "_saveasnew" in request.POST:
-            context['show_save'] = False
-            context['show_save_and_continue'] = False
+        if (
+            request.method == "POST"
+            and not form_validated
+            and "_saveasnew" in request.POST
+        ):
+            context["show_save"] = False
+            context["show_save_and_continue"] = False
             # Use the change template instead of the add template.
             add = False
 
         context.update(extra_context or {})
 
-        return self.render_change_form(request, context, add=add, change=not add, obj=obj, form_url=form_url)
+        return self.render_change_form(
+            request, context, add=add, change=not add, obj=obj, form_url=form_url
+        )
 
     @csrf_protect_m
     def delete_view(self, request, object_id, extra_context=None):
@@ -383,7 +437,9 @@ class DocumentAdmin(BaseDocumentAdmin):
 
         to_field = request.POST.get(TO_FIELD_VAR, request.GET.get(TO_FIELD_VAR))
         if to_field and not self.to_field_allowed(request, to_field):
-            raise DisallowedModelAdminToField("The field %s cannot be referenced." % to_field)
+            raise DisallowedModelAdminToField(
+                "The field %s cannot be referenced." % to_field
+            )
 
         obj = self.get_object(request, unquote(object_id), to_field)
 
@@ -392,14 +448,15 @@ class DocumentAdmin(BaseDocumentAdmin):
 
         if obj is None:
             raise Http404(
-                _('%(name)s object with primary key %(key)r does not exist.') %
-                {'name': force_text(opts.verbose_name), 'key': escape(object_id)}
+                _("%(name)s object with primary key %(key)r does not exist.")
+                % {"name": force_text(opts.verbose_name), "key": escape(object_id)}
             )
 
         # Populate deleted_objects, a data structure of all related objects that
         # will also be deleted.
         (deleted_objects, model_count, perms_needed, protected) = get_deleted_objects(
-            [obj], request, self.admin_site)
+            [obj], request, self.admin_site
+        )
 
         if request.POST:  # The user has already confirmed the deletion.
             if perms_needed:
@@ -431,8 +488,7 @@ class DocumentAdmin(BaseDocumentAdmin):
             opts=opts,
             app_label=app_label,
             preserved_filters=self.get_preserved_filters(request),
-            is_popup=(IS_POPUP_VAR in request.POST or
-                      IS_POPUP_VAR in request.GET),
+            is_popup=(IS_POPUP_VAR in request.POST or IS_POPUP_VAR in request.GET),
             to_field=to_field,
         )
         context.update(extra_context or {})
@@ -442,14 +498,18 @@ class DocumentAdmin(BaseDocumentAdmin):
     def history_view(self, request, object_id, extra_context=None):
         "The 'history' admin view for this model."
         from django.contrib.admin.models import LogEntry
+
         # First check if the user can see this history.
         model = self.model
         obj = self.get_object(request, unquote(object_id))
         if obj is None:
-            raise Http404(_('%(name)s object with primary key %(key)r does not exist.') % {
-                'name': force_text(model._meta.verbose_name),
-                'key': escape(object_id),
-            })
+            raise Http404(
+                _("%(name)s object with primary key %(key)r does not exist.")
+                % {
+                    "name": force_text(model._meta.verbose_name),
+                    "key": escape(object_id),
+                }
+            )
 
         if not self.has_change_permission(request, obj):
             raise PermissionDenied
@@ -457,14 +517,18 @@ class DocumentAdmin(BaseDocumentAdmin):
         # Then get the history for this object.
         opts = model._meta
         app_label = opts.app_label
-        action_list = LogEntry.objects.filter(
-            object_id=unquote(object_id),
-            content_type=get_content_type_for_model(model)
-        ).select_related().order_by('action_time')
+        action_list = (
+            LogEntry.objects.filter(
+                object_id=unquote(object_id),
+                content_type=get_content_type_for_model(model),
+            )
+            .select_related()
+            .order_by("action_time")
+        )
 
         context = dict(
             self.admin_site.each_context(request),
-            title=_('Change history: %s') % force_text(obj),
+            title=_("Change history: %s") % force_text(obj),
             action_list=action_list,
             module_name=capfirst(force_text(opts.verbose_name_plural)),
             object=obj,
@@ -475,11 +539,16 @@ class DocumentAdmin(BaseDocumentAdmin):
 
         request.current_app = self.admin_site.name
 
-        return TemplateResponse(request, self.object_history_template or [
-            "admin/%s/%s/object_history.html" % (app_label, opts.model_name),
-            "admin/%s/object_history.html" % app_label,
-            "admin/object_history.html"
-        ], context)
+        return TemplateResponse(
+            request,
+            self.object_history_template
+            or [
+                "admin/%s/%s/object_history.html" % (app_label, opts.model_name),
+                "admin/%s/object_history.html" % app_label,
+                "admin/object_history.html",
+            ],
+            context,
+        )
 
 
 class InlineDocumentAdmin(BaseDocumentAdmin):
@@ -489,6 +558,7 @@ class InlineDocumentAdmin(BaseDocumentAdmin):
     ``model`` to its parent. This is required if ``model`` has more than one
     ``ForeignKey`` to its parent.
     """
+
     document = None
     fk_name = None
     formset = BaseInlineDocumentFormSet
@@ -534,7 +604,9 @@ class InlineDocumentAdmin(BaseDocumentAdmin):
             "formset": self.formset,
             "fields": fields,
             "exclude": exclude,
-            "formfield_callback": partialmethod(self.formfield_for_dbfield, request=request),
+            "formfield_callback": partialmethod(
+                self.formfield_for_dbfield, request=request
+            ),
             "extra": self.extra,
             "max_num": self.max_num,
             "can_delete": self.can_delete,
@@ -547,12 +619,12 @@ class InlineDocumentAdmin(BaseDocumentAdmin):
             return self.declared_fieldsets
         form = self.get_formset(request).form
         fields = form.base_fields.keys() + list(self.get_readonly_fields(request, obj))
-        return [(None, {'fields': fields})]
+        return [(None, {"fields": fields})]
 
 
 class EmbeddedDocumentAdmin(InlineDocumentAdmin):
     def __init__(self, field, parent_document, admin_site):
-        if hasattr(field, 'field'):
+        if hasattr(field, "field"):
             self.model = field.field.document_type
         else:
             self.model = field.document_type
@@ -563,10 +635,16 @@ class EmbeddedDocumentAdmin(InlineDocumentAdmin):
         self.rel_name = field.name
 
         if self.verbose_name is None:
-            self.verbose_name = "Field: %s (Document: %s)" % (capfirst(field.name), self.model._meta.verbose_name)
+            self.verbose_name = "Field: %s (Document: %s)" % (
+                capfirst(field.name),
+                self.model._meta.verbose_name,
+            )
 
         if self.verbose_name_plural is None:
-            self.verbose_name_plural = "Field: %s (Document:  %s)" % (capfirst(field.name), self.model._meta.verbose_name_plural)
+            self.verbose_name_plural = "Field: %s (Document:  %s)" % (
+                capfirst(field.name),
+                self.model._meta.verbose_name_plural,
+            )
 
         super(EmbeddedDocumentAdmin, self).__init__(parent_document, admin_site)
 
@@ -583,12 +661,12 @@ class EmbeddedDocumentAdmin(InlineDocumentAdmin):
 
 
 class StackedDocumentInline(InlineDocumentAdmin):
-    template = 'admin/edit_inline/stacked.html'
+    template = "admin/edit_inline/stacked.html"
 
 
 class EmbeddedStackedDocumentAdmin(EmbeddedDocumentAdmin):
-    template = 'admin/edit_inline/stacked.html'
+    template = "admin/edit_inline/stacked.html"
 
 
 class TabularDocumentInline(InlineDocumentAdmin):
-    template = 'admin/edit_inline/tabular.html'
+    template = "admin/edit_inline/tabular.html"

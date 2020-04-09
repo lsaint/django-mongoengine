@@ -23,7 +23,8 @@ def get_declared_fields(bases, attrs, with_base_fields=True):
 
     fields = [
         (field_name, attrs.pop(field_name))
-        for field_name, obj in list(six.iteritems(attrs)) if isinstance(obj, Field)
+        for field_name, obj in list(six.iteritems(attrs))
+        if isinstance(obj, Field)
     ]
     fields.sort(key=lambda x: x[1].creation_counter)
 
@@ -32,11 +33,11 @@ def get_declared_fields(bases, attrs, with_base_fields=True):
     # order to preserve the correct order of fields.
     if with_base_fields:
         for base in bases[::-1]:
-            if hasattr(base, 'base_fields'):
+            if hasattr(base, "base_fields"):
                 fields = list(six.iteritems(base.base_fields)) + fields
     else:
         for base in bases[::-1]:
-            if hasattr(base, 'declared_fields'):
+            if hasattr(base, "declared_fields"):
                 fields = list(six.iteritems(base.declared_fields)) + fields
 
     return OrderedDict(fields)

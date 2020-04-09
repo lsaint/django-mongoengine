@@ -13,6 +13,7 @@ class RelationWrapper(object):
     Wraps a document referenced from a ReferenceField with an Interface similiar to
     django's ForeignKeyField.rel
     """
+
     def __init__(self, document):
         self.to = document
 
@@ -21,7 +22,7 @@ def label_for_field(name, model, model_admin=None, return_attr=False):
     attr = None
     try:
         field = model._meta.get_field_by_name(name)[0]
-        label = field.name.replace('_', ' ')
+        label = field.name.replace("_", " ")
     except FieldDoesNotExist:
         if name == "__unicode__":
             label = force_text(model._meta.verbose_name)
@@ -35,7 +36,10 @@ def label_for_field(name, model, model_admin=None, return_attr=False):
             elif hasattr(model, name):
                 attr = getattr(model, name)
             else:
-                message = "Unable to lookup '%s' on %s" % (name, model._meta.object_name)
+                message = "Unable to lookup '%s' on %s" % (
+                    name,
+                    model._meta.object_name,
+                )
                 if model_admin:
                     message += " or %s" % (model_admin.__class__.__name__,)
                 raise AttributeError(message)

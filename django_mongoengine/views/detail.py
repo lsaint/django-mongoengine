@@ -4,9 +4,8 @@ from django.views.generic.base import TemplateResponseMixin
 from django.views.generic import detail as djmod
 import six
 
-from django_mongoengine.utils.wrappers import (
-    WrapDocument, copy_class,
-)
+from django_mongoengine.utils.wrappers import WrapDocument, copy_class
+
 
 @six.add_metaclass(WrapDocument)
 class SingleObjectMixin(djmod.SingleObjectMixin):
@@ -18,17 +17,15 @@ class SingleObjectMixin(djmod.SingleObjectMixin):
         """
         if self.context_object_name:
             return self.context_object_name
-        elif hasattr(obj, '_meta'):
+        elif hasattr(obj, "_meta"):
             return obj._meta.model_name
         else:
             return None
 
 
-
-
 class SingleObjectTemplateResponseMixin(TemplateResponseMixin):
     template_name_field = None
-    template_name_suffix = '_detail'
+    template_name_suffix = "_detail"
 
     def get_template_names(self):
         """
@@ -58,16 +55,15 @@ class SingleObjectTemplateResponseMixin(TemplateResponseMixin):
             # The least-specific option is the default <app>/<model>_detail.html;
             # only use this if the object in question is a model.
             opts = None
-            if hasattr(self.object, '_meta'):
+            if hasattr(self.object, "_meta"):
                 opts = self.object._meta
-            elif hasattr(self, 'model') and self.model is not None:
+            elif hasattr(self, "model") and self.model is not None:
                 opts = self.model._meta
             if opts:
-                names.append("%s/%s%s.html" % (
-                    opts.app_label,
-                    opts.model_name,
-                    self.template_name_suffix
-                ))
+                names.append(
+                    "%s/%s%s.html"
+                    % (opts.app_label, opts.model_name, self.template_name_suffix)
+                )
 
             # If we still haven't managed to find any template names, we should
             # re-raise the ImproperlyConfigured to alert the user.

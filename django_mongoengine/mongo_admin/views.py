@@ -2,8 +2,14 @@ import operator
 
 from django.core.exceptions import SuspiciousOperation, ImproperlyConfigured
 from django.contrib.admin.views.main import (
-    ChangeList, ORDER_VAR, ALL_VAR, ORDER_TYPE_VAR, SEARCH_VAR, IS_POPUP_VAR,
-    TO_FIELD_VAR)
+    ChangeList,
+    ORDER_VAR,
+    ALL_VAR,
+    ORDER_TYPE_VAR,
+    SEARCH_VAR,
+    IS_POPUP_VAR,
+    TO_FIELD_VAR,
+)
 from django.contrib.admin.options import IncorrectLookupParameters
 from django.core.paginator import InvalidPage
 from django.utils.encoding import smart_str
@@ -29,8 +35,9 @@ class DocumentChangeList(ChangeList):
         except:
             self.root_query_set = self.root_queryset
 
-        paginator = self.model_admin.get_paginator(request, self.query_set,
-                                                   self.list_per_page)
+        paginator = self.model_admin.get_paginator(
+            request, self.query_set, self.list_per_page
+        )
         # Get the number of objects, with admin filters applied.
         result_count = paginator.count
 
@@ -51,7 +58,7 @@ class DocumentChangeList(ChangeList):
             result_list = self.query_set.clone()
         else:
             try:
-                result_list = paginator.page(self.page_num+1).object_list
+                result_list = paginator.page(self.page_num + 1).object_list
             except InvalidPage:
                 raise IncorrectLookupParameters
 
@@ -87,26 +94,27 @@ class DocumentChangeList(ChangeList):
             return super(DocumentChangeList, self).get_ordering()
 
         params = self.params
-        ordering = list(self.model_admin.get_ordering(request)
-                        or self._get_default_ordering())
+        ordering = list(
+            self.model_admin.get_ordering(request) or self._get_default_ordering()
+        )
         if ORDER_VAR in params:
             # Clear ordering and used params
             ordering = []
-            order_params = params[ORDER_VAR].split('.')
+            order_params = params[ORDER_VAR].split(".")
             for p in order_params:
                 try:
-                    none, pfx, idx = p.rpartition('-')
+                    none, pfx, idx = p.rpartition("-")
                     field_name = self.list_display[int(idx)]
                     order_field = self.get_ordering_field(field_name)
                     if not order_field:
-                        continue # No 'admin_order_field', skip it
+                        continue  # No 'admin_order_field', skip it
                     ordering.append(pfx + order_field)
                 except (IndexError, ValueError):
-                    continue # Invalid ordering specified, skip it.
+                    continue  # Invalid ordering specified, skip it.
 
         # Add the given query's ordering fields, if any.
         try:
-            sign = lambda t: t[1] > 0 and '+' or '-'
+            sign = lambda t: t[1] > 0 and "+" or "-"
             qs_ordering = [sign(t) + t[0] for t in queryset._ordering]
             ordering.extend(qs_ordering)
         except:
@@ -116,16 +124,22 @@ class DocumentChangeList(ChangeList):
         # ordering fields so we can guarantee a deterministic order across all
         # database backends.
         pk_name = self.lookup_opts.pk.name
-        if not (set(ordering) & set(['pk', '-pk', pk_name, '-' + pk_name])):
+        if not (set(ordering) & set(["pk", "-pk", pk_name, "-" + pk_name])):
             # The two sets do not intersect, meaning the pk isn't present. So
             # we add it.
-            ordering.append('pk')
+            ordering.append("pk")
         return ordering
 
     def _lookup_param_1_3(self):
-        lookup_params = self.params.copy() # a dictionary of the query string
-        for i in (ALL_VAR, ORDER_VAR, ORDER_TYPE_VAR, SEARCH_VAR,
-                  IS_POPUP_VAR, TO_FIELD_VAR):
+        lookup_params = self.params.copy()  # a dictionary of the query string
+        for i in (
+            ALL_VAR,
+            ORDER_VAR,
+            ORDER_TYPE_VAR,
+            SEARCH_VAR,
+            IS_POPUP_VAR,
+            TO_FIELD_VAR,
+        ):
             if i in lookup_params:
                 del lookup_params[i]
         for key, value in lookup_params.items():
@@ -136,22 +150,20 @@ class DocumentChangeList(ChangeList):
                 lookup_params[smart_str(key)] = value
 
             # if key ends with __in, split parameter into separate values
-            if key.endswith('__in'):
-                value = value.split(',')
+            if key.endswith("__in"):
+                value = value.split(",")
                 lookup_params[key] = value
 
             # if key ends with __isnull, special case '' and false
-            if key.endswith('__isnull'):
-                if value.lower() in ('', 'false'):
+            if key.endswith("__isnull"):
+                if value.lower() in ("", "false"):
                     value = False
                 else:
                     value = True
                 lookup_params[key] = value
 
             if not self.model_admin.lookup_allowed(key, value):
-                raise SuspiciousOperation(
-                    "Filtering by %s not allowed" % key
-                )
+                raise SuspiciousOperation("Filtering by %s not allowed" % key)
         return lookup_params
 
     def get_queryset(self, request=None):
@@ -164,8 +176,12 @@ class DocumentChangeList(ChangeList):
         qs = self.root_query_set.clone()
 
         try:
-            (self.filter_specs, self.has_filters, remaining_lookup_params,
-             use_distinct) = self.get_filters(request)
+            (
+                self.filter_specs,
+                self.has_filters,
+                remaining_lookup_params,
+                use_distinct,
+            ) = self.get_filters(request)
 
             # Then, we let every list filter modify the queryset to its liking.
             for filter_spec in self.filter_specs:
@@ -200,21 +216,22 @@ class DocumentChangeList(ChangeList):
 
         # Apply keyword searches.
         def construct_search(field_name):
-            if field_name.startswith('^'):
+            if field_name.startswith("^"):
                 return "%s__istartswith" % field_name[1:]
-            elif field_name.startswith('='):
+            elif field_name.startswith("="):
                 return "%s__iexact" % field_name[1:]
             # No __search for mongoengine
-            #elif field_name.startswith('@'):
+            # elif field_name.startswith('@'):
             #    return "%s__search" % field_name[1:]
             else:
                 return "%s__icontains" % field_name
 
         if self.search_fields and self.query:
-            orm_lookups = [construct_search(str(search_field))
-                           for search_field in self.search_fields]
+            orm_lookups = [
+                construct_search(str(search_field))
+                for search_field in self.search_fields
+            ]
             for bit in self.query.split():
-                or_queries = [Q(**{orm_lookup: bit})
-                              for orm_lookup in orm_lookups]
+                or_queries = [Q(**{orm_lookup: bit}) for orm_lookup in orm_lookups]
                 qs = qs.filter(reduce(operator.or_, or_queries))
         return qs

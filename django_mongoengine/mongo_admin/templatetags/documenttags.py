@@ -1,12 +1,17 @@
 from django.template import Library
 
-from django.contrib.admin.templatetags.admin_list import (result_hidden_fields, ResultList, items_for_result,
-                                                          result_headers)
+from django.contrib.admin.templatetags.admin_list import (
+    result_hidden_fields,
+    ResultList,
+    items_for_result,
+    result_headers,
+)
 from django.db.models.fields import FieldDoesNotExist
 
 from django_mongoengine.forms.utils import patch_document
 
 register = Library()
+
 
 def serializable_value(self, field_name):
     """
@@ -25,6 +30,7 @@ def serializable_value(self, field_name):
         return getattr(self, field_name)
     return getattr(self, field.name)
 
+
 def results(cl):
     """
     Just like the one from Django. Only we add a serializable_value method to
@@ -39,6 +45,7 @@ def results(cl):
             patch_document(serializable_value, res)
             yield ResultList(None, items_for_result(cl, res, None))
 
+
 def document_result_list(cl):
     """
     Displays the headers and data list together
@@ -47,14 +54,20 @@ def document_result_list(cl):
     try:
         num_sorted_fields = 0
         for h in headers:
-            if h['sortable'] and h['sorted']:
+            if h["sortable"] and h["sorted"]:
                 num_sorted_fields += 1
     except KeyError:
         pass
 
-    return {'cl': cl,
-            'result_hidden_fields': list(result_hidden_fields(cl)),
-            'result_headers': headers,
-            'num_sorted_fields': num_sorted_fields,
-            'results': list(results(cl))}
-result_list = register.inclusion_tag("admin/change_list_results.html")(document_result_list)
+    return {
+        "cl": cl,
+        "result_hidden_fields": list(result_hidden_fields(cl)),
+        "result_headers": headers,
+        "num_sorted_fields": num_sorted_fields,
+        "results": list(results(cl)),
+    }
+
+
+result_list = register.inclusion_tag("admin/change_list_results.html")(
+    document_result_list
+)

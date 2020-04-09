@@ -10,28 +10,22 @@ import datetime
 
 
 class Comment(EmbeddedDocument):
-    created_at = fields.DateTimeField(
-        default=datetime.datetime.now, editable=False,
-    )
+    created_at = fields.DateTimeField(default=datetime.datetime.now, editable=False)
     author = fields.StringField(verbose_name="Name", max_length=255)
-    email  = fields.EmailField(verbose_name="Email", blank=True)
+    email = fields.EmailField(verbose_name="Email", blank=True)
     body = fields.StringField(verbose_name="Comment")
 
 
 class Post(Document):
-    created_at = fields.DateTimeField(
-        default=datetime.datetime.now, editable=False,
-    )
+    created_at = fields.DateTimeField(default=datetime.datetime.now, editable=False)
     title = fields.StringField(max_length=255)
     slug = fields.StringField(max_length=255, primary_key=True)
     comments = fields.ListField(
-        fields.EmbeddedDocumentField('Comment'),
-        default=[],
-        blank=True,
+        fields.EmbeddedDocumentField("Comment"), default=[], blank=True
     )
 
     def get_absolute_url(self):
-        return reverse('post', kwargs={"slug": self.slug})
+        return reverse("post", kwargs={"slug": self.slug})
 
     def __unicode__(self):
         return self.title
@@ -41,9 +35,9 @@ class Post(Document):
         return self.__class__.__name__
 
     meta = {
-        'indexes': ['-created_at', 'slug'],
-        'ordering': ['-created_at'],
-        'allow_inheritance': True
+        "indexes": ["-created_at", "slug"],
+        "ordering": ["-created_at"],
+        "allow_inheritance": True,
     }
 
 
