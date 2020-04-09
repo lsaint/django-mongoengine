@@ -64,6 +64,13 @@ class BaseUser(object):
     is_anonymous = AbstractBaseUser.__dict__["is_anonymous"]
     is_authenticated = AbstractBaseUser.__dict__["is_authenticated"]
 
+    @classmethod
+    def get_email_field_name(cls):
+        try:
+            return cls.EMAIL_FIELD
+        except AttributeError:
+            return "email"
+
 
 class ContentType(document.Document):
     name = fields.StringField(max_length=100)
@@ -117,7 +124,83 @@ class PermissionManager(QuerySetManager):
 
 
 class Permission(document.Document):
-    pass
+    """The permissions system provides a way to assign permissions to specific
+    users and groups of users.
+
+    The permission system is used by the Django admin site, but may also be
+    useful in your own code. The Django admin site uses permissions as follows:
+
+        - The "add" permission limits the user's ability to view the "add"
+          form and add an object.
+        - The "change" permission limits a user's ability to view the change
+          list, view the "change" form and change an object.
+        - The "delete" permission limits the ability to delete an object.
+
+    Permissions are set globally per type of object, not per specific object
+    instance. It is possible to say "Mary may change news stories," but it's
+    not currently possible to say "Mary may change news stories, but only the
+    ones she created herself" or "Mary may only change news stories that have
+    a certain status or publication date."
+
+    Three basic permissions -- add, change and delete -- are automatically
+    created for each Django model.
+    """
+
+    name = fields.StringField(max_length=50, verbose_name=_("username"))
+    content_type = fields.ReferenceField(ContentType)
+    codename = fields.StringField(max_length=100, verbose_name=_("codename"))
+    # FIXME: don't access field of the other class
+    # unique_with=['content_type__app_label', 'content_type__model'])
+
+    objects = PermissionManager()
+
+    class Meta:
+        verbose_name = _("permission")
+        verbose_name_plural = _("permissions")
+        # unique_together = (('content_type', 'codename'),)
+        # ordering = ('content_type__app_label', 'content_type__model', 'codename')
+
+    def __unicode__(self):
+        return u"%s | %s | %s" % (
+            self.content_type.app_label,
+            self.content_type,
+            self.name,
+        )
+
+    def natural_key(self):
+        return (self.codename,) + self.content_type.natural_key()
+
+    natural_key.dependencies = ["contenttypes.contenttype"]
+
+
+class Group(document.Document):
+    """Groups are a generic way of categorizing users to apply permissions,
+    or some other label, to those users. A user can belong to any number of
+    groups.
+
+    A user in a group automatically has all the permissions granted to that
+    group. For example, if the group Site editors has the permission
+    can_edit_home_page, any user in that group will have that permission.
+
+    Beyond permissions, groups are a convenient way to categorize users to
+    apply some label, or extended functionality, to them. For example, you
+    could create a group 'Special users', and you could write code that would
+    do special things to those users -- such as giving them access to a
+    members-only portion of your site, or sending them members-only
+    e-mail messages.
+    """
+
+    name = fields.StringField(max_length=80, unique=True, verbose_name=_("name"))
+    permissions = fields.ListField(
+        fields.ReferenceField(Permission, verbose_name=_("permissions"))
+    )
+
+    class Meta:
+        verbose_name = _("group")
+        verbose_name_plural = _("groups")
+
+    def __unicode__(self):
+        return self.name
 
 
 class AbstractUser(BaseUser, document.Document):
@@ -191,6 +274,12 @@ class AbstractUser(BaseUser, document.Document):
 
     def __unicode__(self):
         return self.username
+
+    def get_full_name(self):
+        """Returns the users first and last names, separated by a space.
+        """
+        full_name = u"%s %s" % (self.first_name or "", self.last_name or "")
+        return full_name.strip()
 
     def set_password(self, raw_password):
         """Sets the user's password - always use this rather than directly

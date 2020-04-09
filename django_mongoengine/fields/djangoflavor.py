@@ -19,7 +19,6 @@ _field_defaults = (
 
 
 class DjangoField(object):
-
     get_choices = Field.__dict__["get_choices"]
 
     def __init__(self, *args, **kwargs):
@@ -32,7 +31,8 @@ class DjangoField(object):
         kwargs["required"] = not kwargs["blank"]
         if hasattr(self, "auto_created"):
             kwargs.pop("auto_created")
-        self.verbose_name = kwargs.pop("verbose_name", None)
+        self._verbose_name = kwargs.pop("verbose_name", None)
+
         super(DjangoField, self).__init__(*args, **kwargs)
         self.remote_field = None
         self.is_relation = self.remote_field is not None
@@ -190,6 +190,9 @@ class DecimalField(MinMaxMixin, DjangoField):
         return super(DecimalField, self).formfield(**defaults)
 
 
+# TODO: test boolean choices; test choices
+
+
 class BooleanField(DjangoField):
     def __init__(self, *args, **kwargs):
         kwargs["blank"] = True
@@ -225,6 +228,7 @@ class ReferenceField(DjangoField):
         return super(ReferenceField, self).formfield(**defaults)
 
 
+# TODO: test field.field.choices?
 class ListField(DjangoField):
     def formfield(self, **kwargs):
         if self.field.choices:
@@ -239,7 +243,8 @@ class ListField(DjangoField):
                 "queryset": self.field.document_type.objects,
             }
         else:
-            return None
+            defaults = {}
+
         defaults.update(kwargs)
         return super(ListField, self).formfield(**defaults)
 

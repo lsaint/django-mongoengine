@@ -1,8 +1,10 @@
+from functools import partial
+
 from django.forms.forms import DeclarativeFieldsMetaclass
 from django.forms.models import ALL_FIELDS
 from django.core.exceptions import FieldError, ImproperlyConfigured
 from django.forms import models as model_forms
-from django.utils import six
+import six
 
 from mongoengine.fields import ObjectIdField, FileField
 from mongoengine.errors import ValidationError
@@ -43,6 +45,54 @@ def construct_instance(form, instance, fields=None, exclude=None):
 
     for f in file_field_list:
         f.save_form_data(instance, cleaned_data[f.name])
+
+    return instance
+
+
+def save_instance(
+    form,
+    instance,
+    fields=None,
+    fail_message="saved",
+    commit=True,
+    exclude=None,
+    construct=True,
+):
+    """
+    Saves bound Form ``form``'s cleaned_data into document instance ``instance``.
+
+    If commit=True, then the changes to ``instance`` will be saved to the
+    database. Returns ``instance``.
+
+    If construct=False, assume ``instance`` has already been constructed and
+    just needs to be saved.
+    """
+    instance = construct_instance(form, instance, fields, exclude)
+    if form.errors:
+        raise ValueError(
+            "The %s could not be %s because the data didn't"
+            " validate." % (instance.__class__.__name__, fail_message)
+        )
+
+    if commit and hasattr(instance, "save"):
+        # see BaseDocumentForm._post_clean for an explanation
+        if hasattr(form, "_delete_before_save"):
+            fields = instance._fields
+            new_fields = dict(
+                [
+                    (n, f)
+                    for n, f in six.iteritems(fields)
+                    if not n in form._delete_before_save
+                ]
+            )
+            if hasattr(instance, "_changed_fields"):
+                for field in form._delete_before_save:
+                    instance._changed_fields.remove(field)
+            instance._fields = new_fields
+            instance.save()
+            instance._fields = fields
+        else:
+            instance.save()
 
     return instance
 
@@ -226,3 +276,237 @@ def documentform_factory(
         *args,
         **kwargs
     )
+
+
+@six.add_metaclass(DocumentFormMetaclass)
+class EmbeddedDocumentForm(BaseDocumentForm):
+    def __init__(self, parent_document, *args, **kwargs):
+        super(EmbeddedDocumentForm, self).__init__(*args, **kwargs)
+        self.parent_document = parent_document
+        if self._meta.embedded_field is None:
+            raise FieldError(
+                "%s.Meta must have defined embedded_field" % self.__class__.__name__
+            )
+        if not hasattr(self.parent_document, self._meta.embedded_field):
+            raise FieldError(
+                "Parent document must have field %s" % self._meta.embedded_field
+            )
+
+    def save(self, commit=True):
+        if self.errors:
+            raise ValueError(
+                "The %s could not be saved because the data didn't"
+                " validate." % self.instance.__class__.__name__
+            )
+
+        def save(*args, **kwargs):
+            instance = construct_instance(
+                self, self.instance, self.fields, self._meta.exclude
+            )
+            l = getattr(self.parent_document, self._meta.embedded_field)
+            l.append(instance)
+            setattr(self.parent_document, self._meta.embedded_field, l)
+            self.parent_document.save(*args, **kwargs)
+
+        if commit:
+            save()
+        else:
+            self.instance.save = save
+
+        return self.instance
+
+
+class BaseDocumentFormSet(model_forms.BaseModelFormSet):
+    """
+    A ``FormSet`` for editing a queryset and/or adding new objects to it.
+    """
+
+
+def documentformset_factory(
+    model,
+    form=DocumentForm,
+    formfield_callback=None,
+    formset=BaseDocumentFormSet,
+    extra=1,
+    can_delete=False,
+    can_order=False,
+    max_num=None,
+    fields=None,
+    exclude=None,
+    widgets=None,
+    validate_max=False,
+    localized_fields=None,
+    labels=None,
+    help_texts=None,
+    error_messages=None,
+    min_num=None,
+    validate_min=False,
+    *args,
+    **kwargs
+):
+    return model_forms.modelformset_factory(
+        model,
+        form,
+        formfield_callback,
+        formset,
+        extra,
+        can_delete,
+        can_order,
+        max_num,
+        fields,
+        exclude,
+        widgets,
+        validate_max,
+        localized_fields,
+        labels,
+        help_texts,
+        error_messages,
+        min_num,
+        validate_min,
+        *args,
+        **kwargs
+    )
+
+
+class BaseInlineDocumentFormSet(BaseDocumentFormSet):
+    """
+    A formset for child objects related to a parent.
+
+    self.instance -> the document containing the inline objects
+    """
+
+    def __init__(
+        self,
+        data=None,
+        files=None,
+        instance=None,
+        save_as_new=False,
+        prefix=None,
+        queryset=[],
+        **kwargs
+    ):
+        self.instance = instance
+        self.save_as_new = save_as_new
+
+        super(BaseInlineDocumentFormSet, self).__init__(
+            data, files, prefix=prefix, queryset=queryset, **kwargs
+        )
+
+    def initial_form_count(self):
+        if self.save_as_new:
+            return 0
+        return super(BaseInlineDocumentFormSet, self).initial_form_count()
+
+    # @classmethod
+    def get_default_prefix(cls):
+        return cls.model.__name__.lower()
+
+    get_default_prefix = classmethod(get_default_prefix)
+
+    def add_fields(self, form, index):
+        super(BaseInlineDocumentFormSet, self).add_fields(form, index)
+
+        # Add the generated field to form._meta.fields if it's defined to make
+        # sure validation isn't skipped on that field.
+        if form._meta.fields:
+            if isinstance(form._meta.fields, tuple):
+                form._meta.fields = list(form._meta.fields)
+            # form._meta.fields.append(self.fk.name)
+
+    def get_unique_error_message(self, unique_check):
+        unique_check = [field for field in unique_check if field != self.fk.name]
+        return super(BaseInlineDocumentFormSet, self).get_unique_error_message(
+            unique_check
+        )
+
+
+def inlineformset_factory(
+    document,
+    form=DocumentForm,
+    formset=BaseInlineDocumentFormSet,
+    fields=None,
+    exclude=None,
+    extra=1,
+    can_order=False,
+    can_delete=True,
+    max_num=None,
+    formfield_callback=None,
+):
+    """
+    Returns an ``InlineFormSet`` for the given kwargs.
+
+    You must provide ``fk_name`` if ``model`` has more than one ``ForeignKey``
+    to ``parent_model``.
+    """
+    kwargs = {
+        "form": form,
+        "formfield_callback": formfield_callback,
+        "formset": formset,
+        "extra": extra,
+        "can_delete": can_delete,
+        "can_order": can_order,
+        "fields": fields,
+        "exclude": exclude,
+        "max_num": max_num,
+    }
+    FormSet = documentformset_factory(document, **kwargs)
+    return FormSet
+
+
+class EmbeddedDocumentFormSet(BaseInlineDocumentFormSet):
+    def __init__(
+        self,
+        parent_document=None,
+        data=None,
+        files=None,
+        instance=None,
+        save_as_new=False,
+        prefix=None,
+        queryset=[],
+        **kwargs
+    ):
+        self.parent_document = parent_document
+        super(EmbeddedDocumentFormSet, self).__init__(
+            data, files, instance, save_as_new, prefix, queryset, **kwargs
+        )
+
+    def _construct_form(self, i, **kwargs):
+        defaults = {"parent_document": self.parent_document}
+        defaults.update(kwargs)
+        form = super(BaseDocumentFormSet, self)._construct_form(i, **defaults)
+        return form
+
+
+def embeddedformset_factory(
+    document,
+    parent_document,
+    form=EmbeddedDocumentForm,
+    formset=EmbeddedDocumentFormSet,
+    fields=None,
+    exclude=None,
+    extra=1,
+    can_order=False,
+    can_delete=True,
+    max_num=None,
+    formfield_callback=None,
+):
+    """
+    Returns an ``InlineFormSet`` for the given kwargs.
+
+    You must provide ``fk_name`` if ``model`` has more than one ``ForeignKey``
+    to ``parent_model``.
+    """
+    kwargs = {
+        "form": form,
+        "formfield_callback": formfield_callback,
+        "formset": formset,
+        "extra": extra,
+        "can_delete": can_delete,
+        "can_order": can_order,
+        "fields": fields,
+        "exclude": exclude,
+        "max_num": max_num,
+    }
+    FormSet = inlineformset_factory(document, **kwargs)
+    FormSet.parent_document = parent_document
+    return FormSet
