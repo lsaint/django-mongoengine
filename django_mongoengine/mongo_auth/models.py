@@ -5,7 +5,6 @@ from django.conf import settings
 from django.contrib.auth.models import (
     AbstractBaseUser,
     _user_has_perm,
-    _user_get_all_permissions,
     _user_has_module_perms,
 )
 from django.db import models
@@ -342,9 +341,6 @@ class AbstractUser(BaseUser, document.Document):
             if hasattr(backend, "get_group_permissions"):
                 permissions.update(backend.get_group_permissions(self, obj))
         return permissions
-
-    def get_all_permissions(self, obj=None):
-        return _user_get_all_permissions(self, obj)
 
     def has_perm(self, perm, obj=None):
         """
