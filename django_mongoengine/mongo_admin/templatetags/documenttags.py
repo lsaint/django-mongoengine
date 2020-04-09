@@ -8,7 +8,7 @@ from django.contrib.admin.templatetags.admin_list import (
 )
 from django.db.models.fields import FieldDoesNotExist
 
-from django_mongoengine.forms.utils import patch_document
+from vendor.django_mongoengine.forms.utils import patch_document
 
 register = Library()
 

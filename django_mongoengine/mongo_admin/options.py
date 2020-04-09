@@ -36,19 +36,19 @@ from django.forms.models import modelform_defines_fields
 from django.conf import settings
 from django.apps import apps
 
-from django_mongoengine.utils import force_text
-from django_mongoengine.fields import (
+from vendor.django_mongoengine.utils import force_text
+from vendor.django_mongoengine.fields import (
     ListField,
     EmbeddedDocumentField,
     ReferenceField,
     StringField,
 )
 
-from django_mongoengine.mongo_admin.util import RelationWrapper
-from django_mongoengine.paginator import Paginator
-from django_mongoengine.utils.wrappers import copy_class
-from django_mongoengine.utils.monkey import get_patched_django_module
-from django_mongoengine.forms.documents import (
+from vendor.django_mongoengine.mongo_admin.util import RelationWrapper
+from vendor.django_mongoengine.paginator import Paginator
+from vendor.django_mongoengine.utils.wrappers import copy_class
+from vendor.django_mongoengine.utils.monkey import get_patched_django_module
+from vendor.django_mongoengine.forms.documents import (
     DocumentForm,
     documentform_factory,
     documentformset_factory,
@@ -272,7 +272,7 @@ class DocumentAdmin(BaseDocumentAdmin):
         """
         Returns the ChangeList class for use on the changelist page.
         """
-        from django_mongoengine.mongo_admin.views import DocumentChangeList
+        from vendor.django_mongoengine.mongo_admin.views import DocumentChangeList
 
         return DocumentChangeList
 

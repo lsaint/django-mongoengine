@@ -5,7 +5,7 @@ from django.utils import formats
 
 from mongoengine import fields
 
-from django_mongoengine.utils import force_text
+from vendor.django_mongoengine.utils import force_text
 
 
 class RelationWrapper(object):
