@@ -62,7 +62,7 @@ python-versions = "*"
 
 [[package]]
 name = "django"
-version = "3.1.9"
+version = "3.1.10"
 description = "A high-level Python Web framework that encourages rapid development and clean, pragmatic design."
 category = "main"
 optional = false
@@ -469,8 +469,8 @@ coverage = [
     {file = "coverage-4.4.2.win32-py3.6.exe", hash = "sha256:f98b461cb59f117887aa634a66022c0bd394278245ed51189f63a036516e32de"},
 ]
 django = [
-    {file = "Django-3.1.9-py3-none-any.whl", hash = "sha256:f5c3f1ce2473abf2f35d992c46d5534e53bd3397867689bde28fd29e856b46b7"},
-    {file = "Django-3.1.9.tar.gz", hash = "sha256:296d10092561a1cf16100885b935dc56cf09c8ccb114e64004554941677c6342"},
+    {file = "Django-3.1.10-py3-none-any.whl", hash = "sha256:973c968e63518859732f018975364785dd96f0581b1e4b12e2a4b749415ac43a"},
+    {file = "Django-3.1.10.tar.gz", hash = "sha256:cd6ec37db950a384dba3341b135394fdc776ede4d149fc7abde1e45a21ec4f22"},
 ]
 docutils = [
     {file = "docutils-0.16-py2.py3-none-any.whl", hash = "sha256:0c5b78adfbf7762415433f5515cd5c9e762339e23369dbe8000d84a4bf4ab3af"},
